@@ -14,13 +14,16 @@ async function getProfile(req, res, next){
     let user;
     if (!(firstVisitBool.exists)){
         await Profile.add(req.session.passport.user);
+        console.log(`~~~ NEW USER SIGN UP ~~~`);
         user = await Profile.getBySpotifyId(req.session.passport.user.id);
+        console.log(`Name: ${user.name}`);
+        console.log(`Spotify ID: ${user.id}`);
         req.session.userid = user.id;
         await getTop3Artists(req, res, next, req.session.passport.accessToken);
-        console.log("You should see this");
-        console.log(" ");
-        console.log(" ");
-        console.log(" ");
+        // console.log("You should see this");
+        // console.log(" ");
+        // console.log(" ");
+        // console.log(" ");
         await getRecentlyPlayed(req, res, next, req.session.passport.accessToken);
     }
     else{
@@ -49,12 +52,11 @@ async function getProfile(req, res, next){
         }
     }
 
-
     const pagePath = (((req.url).split('/')[1]));
 
 
+// // Code for adding message notification icon when there is an unread message
     let messageNotification;
-    // // Code for adding message notification icon when there is an unread message
     // get all of a user's matches
     let arrayOfMatchObjects = await Match.getMatchesThatUserIsIn(req.session.userid);
     // filter out the blocked folks
@@ -73,43 +75,43 @@ async function getProfile(req, res, next){
         const newMessage = await Message.getConversationByMatchId(arrayOfMatchIDs[i]);
         arrayOfMessages.push(newMessage);
     }
-    // console.log("arrayOfMessages ", arrayOfMessages);
-    // reverse the array that you just produced, making it descend chronologically
-    let reverseArrayOfMessages = arrayOfMessages.reverse();
-    // grab the match_id of the first item in that array
-    let niftyNewArray = [];
-    reverseArrayOfMessages.forEach(message => {
-        if(message.length > 0){
-            niftyNewArray.push(message);
-            return message;
+
+    // put them in one big array
+    let arrayOfMess = [];
+    for(let i = 0; i < arrayOfMessages.length; i++){
+        for(let j = 0; j < arrayOfMessages[i].length; j++){
+            arrayOfMess.push(arrayOfMessages[i][j]);
         }
+    }
+
+    // sort that array by most recent
+    arrayOfMess.sort((a,b) => {
+        return b.timestamp - a.timestamp
     });
-    // console.log("niftyNewArray ", niftyNewArray);
-    if(niftyNewArray.length > 0){
-        if(!(niftyNewArray[0])){
-                console.log("Safely aborting!");
+
+    // make sure the user has conversations
+    if(arrayOfMess.length > 0){
+        if(!(arrayOfMess[0])){
+                console.log(`${user.id} is: `);
+                console.log("safely aborting to /profile!");
                 res.redirect('/profile');
             }
-            // console.log(" ");
         const you = await Profile.getUserById(req.session.userid);
-        // console.log(you.last_vist);
-        if(((niftyNewArray[0].reverse())[0].timestamp) > you.last_visit){
-            console.log("New messages waiting for you!");
+        
+        // compare the latest message to the user's last visit to the messages page
+        if((arrayOfMess[0].timestamp) > parseInt(you.last_vist)){
+            // console.log("New messages waiting for you!");
             messageNotification = true;
         }else{
-            console.log(" No new message");
+            // console.log(" No new message");
             messageNotification = false;
         }
-        // const mostRecentMatchIdConversedWith = niftyNewArray[0][0].matches_id;
-        // // use that match_id to find the users in the matches table by that id
-        // const matchObject = await Match.getMatchById(mostRecentMatchIdConversedWith);
     }
     else{
         messageNotification = false;
     }
-    //////////////////////////////////////////////////////////////////
-    console.log("messageNotification ", messageNotification);
-    // render the profile page!
+//////////////////////////////////////////////////////////////////
+
     function renderProfile(){
         res.render('profile.html', {
             locals: { 
@@ -121,8 +123,8 @@ async function getProfile(req, res, next){
                 artistIncomplete: artistIncompleter,
                 hideMe: false,
                 firstVist: firstVisitBool.exists,
-                pagePath: pagePath
-                ,messageNotification: messageNotification
+                pagePath: pagePath,
+                messageNotification: messageNotification
 
             },
             partials:{
@@ -139,38 +141,4 @@ async function getProfile(req, res, next){
 module.exports = {
     getProfile
 };
-
-// // Notes on Axios:
-// const axios = require('axios');
-// axios.{{METHOD}}('{{URL}}').then((response)=>{console.log(response)});
-// // example of GET and POST with options:
-// axios.get('/user', {params: {ID: 12345}}).then(function (response) {console.log(response);}).catch(function (error) {console.log(error);});
-// axios.post('/user', {firstName: 'Fred',lastName: 'Flintstone'}).then(function (response) {console.log(response);}).catch(function (error) {console.log(error);});
-// // there's even support for Promise.All: https://www.npmjs.com/package/axios#user-content-example
-
-// // API FRAMEWORK // //
-
-// // Top three artists for logged-in user
-// Endpoint: https://api.spotify.com/v1/me/top/{type}?time_range={time_range}&limit={limit}
-// Type: artists
-// Time Range: short_term
-// Limit: 3
-// Scopes: user-top-read
-// Returns: Object
-// Desired Info: Object.items[n] .name, .images[0].url
-
-// // Lookup and add artist to list
-// Endpoint: https://api.spotify.com/v1/search?q={Lucy%20Dacus}&type={artist}&limit={1}
-// q: [Artist Name] (needs to be url-encoded)
-// Type: artist
-// Limit: 1
-// Scopes: null
-// Returns: Object
-// Desired Info: Object.artists.items[n] .name, .images[0].url
-
-
-
-// // DB FRAMEWORK // //
-
-// // Update/Insert top_artists table 
 

@@ -34,7 +34,7 @@ async function giveTheCardsInfo(userId) {
 
 
 async function getMatch(req, res){
-    console.log(req.body);
+    // console.log(req.body);
     const userId = req.session.userid 
     const idOfCard = await giveTheCardsInfo(userId)
     // console.log(idOfCard)
@@ -59,155 +59,135 @@ async function getMatch(req, res){
     const matchesList = await Match.getMatchesThatUserIsIn(req.session.userid);
     // console.log(matchesList);
     const notLiked = matchesList.filter(matchObject => { return matchObject.liked === true;});
-    console.log('look here', notLiked)
+    // console.log('look here', notLiked)
 
 
 
-    let messageNotification = false;
-    // // Code for adding message notification icon when there is an unread message
-        // get all of a user's matches
-        let arrayOfMatchObjects = await Match.getMatchesThatUserIsIn(req.session.userid);
-        // filter out the blocked folks
-        arrayOfMatchObjects = arrayOfMatchObjects.filter((matchObject) => {
-            return (matchObject.blocked !== true);
-        });
-        // console.log("arrayOfMatchObjects", arrayOfMatchObjects);
-        // make an array of the match ids
-        let arrayOfMatchIDs = arrayOfMatchObjects.map((matchObject) => {
-            return matchObject.id;
-        });
-        // console.log("arrayOfMatchIDs ", arrayOfMatchIDs);
-        // get all the messages that have those match ids
-        let arrayOfMessages = [];
-        for(let i = 0; i < arrayOfMatchIDs.length; i++) { // forEach and map were giving us headache, back to basics
-            const newMessage = await Message.getConversationByMatchId(arrayOfMatchIDs[i]);
-            arrayOfMessages.push(newMessage);
+// // Code for adding message notification icon when there is an unread message
+    let messageNotification;
+    // get all of a user's matches
+    let arrayOfMatchObjects = await Match.getMatchesThatUserIsIn(req.session.userid);
+    // filter out the blocked folks
+    arrayOfMatchObjects = arrayOfMatchObjects.filter((matchObject) => {
+        return (matchObject.blocked !== true);
+    });
+    // console.log("arrayOfMatchObjects", arrayOfMatchObjects);
+    // make an array of the match ids
+    let arrayOfMatchIDs = arrayOfMatchObjects.map((matchObject) => {
+        return matchObject.id;
+    });
+    // console.log("arrayOfMatchIDs ", arrayOfMatchIDs);
+    // get all the messages that have those match ids
+    let arrayOfMessages = [];
+    for(let i = 0; i < arrayOfMatchIDs.length; i++) { // forEach and map were giving us headache, back to basics
+        const newMessage = await Message.getConversationByMatchId(arrayOfMatchIDs[i]);
+        arrayOfMessages.push(newMessage);
+    }
+
+    // put them in one big array
+    let arrayOfMess = [];
+    for(let i = 0; i < arrayOfMessages.length; i++){
+        for(let j = 0; j < arrayOfMessages[i].length; j++){
+            arrayOfMess.push(arrayOfMessages[i][j]);
         }
-        // console.log("arrayOfMessages ", arrayOfMessages);
-        // reverse the array that you just produced, making it descend chronologically
-        let reverseArrayOfMessages = arrayOfMessages.reverse();
-        // grab the match_id of the first item in that array
-        let niftyNewArray = [];
-        reverseArrayOfMessages.forEach(message => {
-            if(message.length > 0){
-                niftyNewArray.push(message);
-                return message;
+    }
+
+    // sort that array by most recent
+    arrayOfMess.sort((a,b) => {
+        return b.timestamp - a.timestamp
+    });
+
+    // make sure the user has conversations
+    if(arrayOfMess.length > 0){
+        if(!(arrayOfMess[0])){
+                console.log(`${user.id} is: `);
+                console.log("safely aborting to /profile!");
+                res.redirect('/profile');
             }
-        });
-        if(niftyNewArray.length > 0){
-            if(!(niftyNewArray[0])){
-                    console.log("Safely aborting!");
-                    res.redirect('/profile');
-                }
-                // console.log(" ");
-            const you = await Profile.getUserById(req.session.userid);
-            // console.log(you.last_vist);
-            if(((niftyNewArray[0].reverse())[0].timestamp) > you.last_visit){
-                console.log("New messages waiting for you!");
-                messageNotification = true;
-            }else{
-                console.log(" No new message");
-                messageNotification = false;
-            }
-            // const mostRecentMatchIdConversedWith = niftyNewArray[0][0].matches_id;
-            // // use that match_id to find the users in the matches table by that id
-            // const matchObject = await Match.getMatchById(mostRecentMatchIdConversedWith);
-        }
-        else{
+        const you = await Profile.getUserById(req.session.userid);
+        
+        // compare the latest message to the user's last visit to the messages page
+        if((arrayOfMess[0].timestamp) > parseInt(you.last_vist)){
+            // console.log("New messages waiting for you!");
+            messageNotification = true;
+        }else{
+            // console.log(" No new message");
             messageNotification = false;
         }
-        // const mostRecentMatchIdConversedWith = niftyNewArray[0][0].matches_id;
-        // // use that match_id to find the users in the matches table by that id
-        // const matchObject = await Match.getMatchById(mostRecentMatchIdConversedWith);
+    }
+    else{
+        messageNotification = false;
+    }
 //////////////////////////////////////////////////////////////////
 
 
+    if(displayedUserInfo) {
+        res.render('match.html', {
+            locals: { 
+                user: req.session.passport.user,
+                // otherUsers: arrayOfAllUsersId,
+                userArtists: userArrayOfArtists,
+                hideMe: false,
+                displayedUser: displayedUserInfo,
+                pagePath: pagePath,
+                messageNotification: messageNotification
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-if(displayedUserInfo) {
-    res.render('match.html', {
-        locals: { 
-            user: req.session.passport.user,
-            // otherUsers: arrayOfAllUsersId,
-            userArtists: userArrayOfArtists,
-            hideMe: false,
-            displayedUser: displayedUserInfo,
-            pagePath: pagePath,
-            messageNotification: messageNotification
-
-        },
-        partials:{
-            headPartial: './partial-head',
-            navPartial: './partial-nav'
-        }
-    });
-} else if (notLiked.length < 1){
-    res.render('alert.html', {
-        locals: { 
-            pagePath: pagePath,
-            goTo: bgoTo,
-            message1: bmessage1,
-            message2: bmessage2,
-            messageNotification : false
-        },
-        partials:{
-            headPartial: './partial-head',
-            navPartial: './partial-nav'
-        }
-    });    
-} else {
-    res.render('alert.html', {
-        locals: { 
-            pagePath: pagePath,
-            goTo: goTo,
-            message1: message1,
-            message2, message2,
-            messageNotification : false
-        },
-        partials:{
-            headPartial: './partial-head',
-            navPartial: './partial-nav'
-        }
-    });
-}
+            },
+            partials:{
+                headPartial: './partial-head',
+                navPartial: './partial-nav'
+            }
+        });
+    } else if (notLiked.length < 1){
+        res.render('alert.html', {
+            locals: { 
+                pagePath: pagePath,
+                goTo: bgoTo,
+                message1: bmessage1,
+                message2: bmessage2,
+                messageNotification : false
+            },
+            partials:{
+                headPartial: './partial-head',
+                navPartial: './partial-nav'
+            }
+        });    
+    } else {
+        res.render('alert.html', {
+            locals: { 
+                pagePath: pagePath,
+                goTo: goTo,
+                message1: message1,
+                message2: message2,
+                messageNotification : false
+            },
+            partials:{
+                headPartial: './partial-head',
+                navPartial: './partial-nav'
+            }
+        });
+    }
 }
 
 async function addMatch(req,res) {
-    console.log(" ");
-    console.log(" ");
-    console.log(" ");
-    console.log(" ");
-    console.log(" ");
-    console.log(" ");
-    console.log("req");
-    console.log(" ");
-    console.log(req.body);
+    // console.log(" ");
+    // console.log(" ");
+    // console.log(" ");
+    // console.log(" ");
+    // console.log(" ");
+    // console.log(" ");
+    // console.log("req");
+    // console.log(" ");
+    // console.log(req.body);
     // console.log('we made it here')
-    const userId = req.session.userid 
+    const userId = req.session.userid;
     // console.log(userId)
-    const idOfCard = await giveTheCardsInfo(userId)
-    const viewedUserInfo = await Match.getUser(idOfCard)
+    const idOfCard = await giveTheCardsInfo(userId);
+    const viewedUserInfo = await Match.getUser(idOfCard);
     // console.log(viewedUserInfo.id)
 
     
-    req.body.buttonclicked
+    // req.body.buttonclicked
     
     
     const addMatch = {
@@ -217,15 +197,21 @@ async function addMatch(req,res) {
         blocked: "False"
     }
 
-
+    if (req.body.buttonclicked === 'True'){
+        console.log(`User ${userId} LIKED User ${viewedUserInfo.id}`);
+    }
+    else if(req.body.buttonclicked === 'False'){
+        console.log(`User ${userId} SKIPPED User ${viewedUserInfo.id}`);
+    }
+    
 
     // console.log('show me it:', req.body.buttonclicked)
 
-    const matchAdd = await Match.add(addMatch)
+    const matchAdd = await Match.add(addMatch);
 
-    console.log(matchAdd);
-    console.log(userId)
-    console.log(matchAdd.id)
+    // console.log(matchAdd);
+    // console.log(userId)
+    // console.log(matchAdd.id)
     const initialMessage= {
         matchesId: matchAdd.id,
         message: 'Hey! I really like your taste in music!',
@@ -236,10 +222,10 @@ async function addMatch(req,res) {
     if(matchAdd.liked){
         await Message.addMessage(initialMessage);
     }
-    console.log(matchAdd.liked)
-    console.log("are we making it here?")
+    // console.log(matchAdd.liked)
+    // console.log("are we making it here?")
 
-    await res.redirect('/match')
+    await res.redirect('/match');
 
 
 }

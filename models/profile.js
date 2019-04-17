@@ -2,7 +2,8 @@ const db = require('./conn');
 // const moment = require('moment');
 
 class Profile {
-    constructor(id, spotify_id, name, picture='http://beverlycove.org/wp-content/uploads/2016/07/no-profile-male.jpg', last_vist){        this.id = id;
+    constructor(id, spotify_id, name, last_vist, picture='http://beverlycove.org/wp-content/uploads/2016/07/no-profile-male.jpg',){        
+        this.id = id;
         this.spotifyId = spotify_id;
         this.name = name;
         this.picture = picture;
@@ -36,12 +37,6 @@ class Profile {
             .then((userData) => {
                 return new Profile (userData.id, userData.spotify_id, userData.name, userData.picture);
             });
-    }
-    // fetchResponse.map((object.item) => {
-    //     await Artists.add(session.user.id, thingy)
-    // })
-    static getUserById(id){
-        return db.one(`select * from users where id=$1`, [id]);
     }
 
     static lastVist(id){
